@@ -17,7 +17,7 @@ object Select {
   }
 
   private def selectTail(t: Tail): List[Instruction] = t match {
-    case Seq(s, t) => selectStatement(XVar(s.asInstanceOf[Assign].x), s.asInstanceOf[Assign].e) ++ selectTail(t)
+    case Seq(Assign(x, e), t) => selectStatement(XVar(x), e) ++ selectTail(t)
     case Return(e) => selectStatement(Reg(RAX()), e)
   }
 
@@ -25,13 +25,11 @@ object Select {
     case Num(i) => List(Instr(Movq(), List(Imm(i), x)))
     case Var(v) => List(Instr(Movq(), List(XVar(v), x)))
     case Prim(op, es) => op match {
-      case Plus() => es(1) match {
-        case value: Var if x.isInstanceOf[XVar] && value.x == x.asInstanceOf[XVar].x =>
-          // var = (+ a1 var)
-          List(Instr(Addq(), List(selectAtm(es(0)), x)))
-        case _ => //var = (+ a1 a2)
-          List(Instr(Movq(), List(selectAtm(es(0)), x)), Instr(Addq(), List(selectAtm(es(1)), x)))
-      }
+      case Plus() =>
+        List(
+          Instr(Movq(), List(selectAtm(es(0)), x)),
+          Instr(Addq(), List(selectAtm(es(1)), x))
+        )
       case Minus() => if (es.length == 2) {
         List(Instr(Movq(), List(selectAtm(es(0)), x)), Instr(Subq(), List(selectAtm(es(1)), x)))
       } else {
